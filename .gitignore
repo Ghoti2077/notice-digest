@@ -1,0 +1,19 @@
+# 本地配置（含密钥，绝不提交）
+config.py
+
+# 运行时状态
+state.json
+seen.json
+bitable_backup.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 编辑器/系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
