@@ -248,6 +248,13 @@ def _days_left(text):
         if (today - d).days > 60:      # 跨年
             d = d.replace(year=d.year + 1)
         return (d - today).days
+    # 「本周五」「周五」「星期五」→ 本周的那天（周一为一周起点）
+    w = re.search(r"(?:本周|周|星期)([一二三四五六日天])", t)
+    if w:
+        wd = "一二三四五六日".find(w.group(1).replace("天", "日"))
+        if wd >= 0:
+            monday = today - datetime.timedelta(days=today.weekday())
+            return (monday + datetime.timedelta(days=wd) - today).days
     if re.search(r"今天|今日|当天", t):
         return 0
     if re.search(r"明天|明日", t):
@@ -294,12 +301,14 @@ def ledger_sync(rows, prune_days=7):
         print("台账读取失败:", d)
         return None
     items = d.get("data", {}).get("items", [])
-    seen, upd, dele = set(), [], []
+    seen, seen_task, upd, dele = set(), set(), [], []
     for it in items:
         f, rid = it.get("fields", {}), it["record_id"]
         key = _plain(f.get("来源ID"))
         if key:
             seen.add(key)
+        # 同一件事可能被两个人发两遍（消息 id 不同）→ 按正文前 30 字再挡一道
+        seen_task.add(_plain(f.get("任务"))[:30])
         due = f.get("截止")
         if not isinstance(due, (int, float)) or f.get("状态") == "已完成":
             continue
@@ -313,15 +322,22 @@ def ledger_sync(rows, prune_days=7):
     for r in rows:
         if not r.get("id") or r["id"] in seen:
             continue
+        task = str(r.get("task") or "")
+        if task[:30] in seen_task:
+            continue
+        seen_task.add(task[:30])
         days = r.get("days")
-        flds = {"任务": "%s〔%s〕" % (r.get("task", ""), r.get("source", "")),
+        flds = {"任务": "%s〔%s〕" % (task, r.get("source", "")),
                 "状态": "待处理",
                 "重要紧急程度": "重要且紧急" if isinstance(days, int) and days <= 3 else "重要不紧急",
                 "来源ID": r["id"]}
         if isinstance(days, int):
             d0 = today + datetime.timedelta(days=days)
             flds["截止"] = int(datetime.datetime.combine(d0, datetime.time(23, 59)).timestamp() * 1000)
-            flds["截止日期"] = "🔥今日" if days == 0 else ("本周内" if days <= 7 else "以后")
+            if days < 0:
+                flds["截止日期"] = "已过期"
+            else:
+                flds["截止日期"] = "🔥今日" if days == 0 else ("本周内" if days <= 7 else "以后")
         new.append({"fields": flds})
 
     if new:
