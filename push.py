@@ -338,6 +338,8 @@ def ledger_sync(rows, prune_days=7):
                 flds["截止日期"] = "已过期"
             else:
                 flds["截止日期"] = "🔥今日" if days == 0 else ("本周内" if days <= 7 else "以后")
+        else:
+            flds["截止日期"] = "时间未定"     # 原文没写日期，不猜，单独标出来
         new.append({"fields": flds})
 
     if new:
