@@ -169,8 +169,9 @@ def render(picked, cands, total_new):
     def key(p):
         return str(p.get("prio", "")).strip().lower()
 
-    hot = [p for p in picked if key(p) == "high"]
-    rest = [p for p in picked if key(p) not in ("high", "expired")]
+    hot = [p for p in picked if key(p) == "high" and isinstance(p.get("_days"), int)]
+    rest = [p for p in picked if key(p) not in ("high", "expired") and isinstance(p.get("_days"), int)]
+    undated = [p for p in picked if key(p) != "expired" and not isinstance(p.get("_days"), int)]
     exp = [p for p in picked if key(p) == "expired"]
 
     def entry(p):
@@ -201,6 +202,11 @@ def render(picked, cands, total_new):
             els.append({"tag": "hr"})
         els.append(_md("**⏳ 时间还宽裕**"))
         els += block(rest)
+    if undated:
+        if els:
+            els.append({"tag": "hr"})
+        els.append(_md("**❓ 没说具体时间**（原文没写截止，自己盯一下）"))
+        els += block(undated)
     if exp:                       # 过期的收进折叠面板，别占屏
         if els:
             els.append({"tag": "hr"})
